@@ -1,8 +1,11 @@
 import re
 import yaml
 
+# Accepts a Reddit user flair (team name + mascot) and finds the corresponding school name as it appears in thread titles.
+# Matches are cached in a YAML file after being initially determined.
 def match_flair_with_team(flair, all_teams):
-    flair_mapping = yaml.load("flairs.yaml")
+    with open("flairs.yaml", "r") as f:
+        flair_mapping = yaml.load(f, Loader=yaml.SafeLoader)
     if flair in flair_mapping.keys():
         return flair_mapping[flair]
     else:
@@ -21,6 +24,9 @@ def match_flair_with_team(flair, all_teams):
                 print(f"{i+1}. {match}")
             selection = input(f"Which team (1-{len(matches)}) does the flair '{flair}' refer to? ")
             flair_mapping[flair] = matches[int(selection)-1]
+        with open("flairs.yaml", "w") as f:
+            yaml.dump(flair_mapping, f)
+        return flair_mapping[flair]
 
 # Extract the names of schools involved in a game thread from the post title
 # Ex: [Game Thread] Pittsburgh @ NC State (12:00 PM ET)
@@ -29,7 +35,7 @@ def extract_team_names(post_titles):
     # using a dict as a faster alternative to set storage that still avoids repeats
     teams = {}
     for title in post_titles:
-        if re.search("[Game Thread]", title):
+        if re.search("@", title):
             # first 14 characters of title are '[Game Thread] ' including trailing space
             split_point = title.find("@")
             team_1_raw = title[14:split_point]
