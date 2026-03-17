@@ -1,5 +1,8 @@
 import re
 import yaml
+import datetime
+
+from data_structures import *
 
 # Accepts a Reddit user flair (team name + mascot) and finds the corresponding school name as it appears in thread titles.
 # Matches are cached in a YAML file after being initially determined.
@@ -24,6 +27,7 @@ def match_flair_with_team(flair, all_teams):
                 print(f"{i+1}. {match}")
             selection = input(f"Which team (1-{len(matches)}) does the flair '{flair}' refer to? ")
             flair_mapping[flair] = matches[int(selection)-1]
+
         with open("flairs.yaml", "w") as f:
             yaml.dump(flair_mapping, f)
         return flair_mapping[flair]
@@ -51,3 +55,54 @@ def extract_team_names(post_titles):
             teams[team_2] = None
     
     return list(teams.keys())
+
+# Filters relevant information about each game (which teams are playing and the IDs of the game and postgame threads)
+# and returns incomplete Game() tuples with the score and timestamp of the game to be filled in later
+# TODO: improve regex to match expressions in parse_game_thread
+def parse_index_thread(body_text):
+    games = []
+
+    table_lines = body_text.split("\n")
+    for line in table_lines:
+        # lines containing game threads begin either with 'FINAL' or a clock time
+        if re.match("[0-9]|F", line[:1]):
+
+            # character sequence in between the two backslashes will be the post ID
+            game_thread_id = re.search("/[a-z,0-9]+/game", line).group()[1:-5]
+            post_thread_id = re.search("/[a-z,0-9]+/post", line).group()[1:-5]
+
+            # matches the formatted table columns of KP | Away | Home | KP
+            teams_raw = re.search("[0-9]+( \| .+){2}\| [0-9]+", line).group()
+            teams_list = re.sub(r'#?[0-9]+', "", teams_raw).split(" | ")[1:-1]
+
+            home_team = teams_list[1].strip()
+            away_team = teams_list[0].strip()
+            games.append(Game(home_team, away_team, None, None, game_thread_id, post_thread_id, None))
+    
+    return games
+
+def parse_game_thread(body_text):
+    tipoff_match = re.search(r"Tip-Off:\s+(\d{1,2}:\d{2}\s+[AP]M)\s+([A-Z]{2,4})", body_text)
+    
+    # Extract thread date (from the Index Thread line)
+    date_match = re.search(r"Index\s+\^Thread\s+\^for\s+\^([A-Za-z]+)\s+\^(\d{1,2}),\s+\^(\d{4})", body_text)
+    
+    if not tipoff_match or not date_match:
+        return None
+
+    time_str, _ = tipoff_match.groups()
+    month_str, day, year = date_match.groups()
+
+    # Combine into full datetime string
+    full_str = f"{month_str} {day} {year} {time_str}"
+    dt = datetime.strptime(full_str, "%B %d %Y %I:%M %p")
+
+    # (away_wins, away_losses, home_wins, home_losses) 
+    # NOTE: datatype is str
+    team_records = re.search(r"\(([0-9]+)-([0-9]+)\).+\(([0-9]+)-([0-9]+)\)", body_text).groups()
+
+    # (away_points, home_points)
+    # NOTE: datatype is str
+    score = re.search(r"\*{2}([0-9]+)\*{2}\s@\s\*{2}([0-9]+)\*{2}").groups()
+
+    return dt, team_records, score
