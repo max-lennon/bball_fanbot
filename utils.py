@@ -7,6 +7,8 @@ from data_structures import *
 # Accepts a Reddit user flair (team name + mascot) and finds the corresponding school name as it appears in thread titles.
 # Matches are cached in a YAML file after being initially determined.
 def match_flair_with_team(flair, all_teams):
+    if flair is None:
+        return []
     
     team_codes = re.findall(r":([a-z]+):", flair)
     
@@ -18,20 +20,25 @@ def match_flair_with_team(flair, all_teams):
         else:
             matches = []
             for team in all_teams:
-                if re.match(team.replace(" ", "").lower(), code):
+                if re.match(code, team.replace(" ", "").lower()):
                     matches.append(team)
 
             
             if len(matches) == 0:
-                manual_match = input(f"Couldn't match '{flair}' to a team name. \nEnter team or leave blank for None: ")
-                flair_mapping[flair] = manual_match if len(manual_match) > 0 else None
+                manual_match = input(f"Couldn't match '{code}' to a team name. \nEnter team or leave blank for None: ")
+                flair_mapping[code] = manual_match if len(manual_match) > 0 else None
             elif len(matches) == 1:
-                flair_mapping[flair] = matches[0]
+                flair_mapping[code] = matches[0]
             else:
-                for i, match in enumerate(matches):
-                    print(f"{i+1}. {match}")
-                selection = input(f"Which team (1-{len(matches)}) does the flair '{flair}' refer to? ")
-                flair_mapping[flair] = matches[int(selection)-1]
+                for match in matches:
+                    if team.replace(" ", "").lower() == code:
+                        flair_mapping[code] == match
+                
+                if code not in flair_mapping.keys():
+                    for i, match in enumerate(matches):
+                        print(f"{i+1}. {match}")
+                    selection = input(f"Which team (1-{len(matches)}) does the flair '{code}' refer to? ")
+                    flair_mapping[code] = matches[int(selection)-1]
 
             with open("flairs.yaml", "w") as f:
                 yaml.dump(flair_mapping, f)
