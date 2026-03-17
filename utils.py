@@ -1,36 +1,42 @@
 import re
 import yaml
-import datetime
+from datetime import datetime
 
 from data_structures import *
 
 # Accepts a Reddit user flair (team name + mascot) and finds the corresponding school name as it appears in thread titles.
 # Matches are cached in a YAML file after being initially determined.
 def match_flair_with_team(flair, all_teams):
-    with open("flairs.yaml", "r") as f:
-        flair_mapping = yaml.load(f, Loader=yaml.SafeLoader)
-    if flair in flair_mapping.keys():
-        return flair_mapping[flair]
-    else:
-        matches = []
-        for team in all_teams:
-            if re.match(team, flair[:len(team)]):
-                matches.append(team)
-        
-        if len(matches) == 0:
-            manual_match = input(f"Couldn't match '{flair}' to a team name. \nEnter team or leave blank for None: ")
-            flair_mapping[flair] = manual_match if len(manual_match) > 0 else None
-        elif len(matches) == 1:
-            flair_mapping[flair] = matches[0]
+    
+    team_codes = re.findall(r":([a-z]+):", flair)
+    
+    for code in team_codes:
+        with open("flairs.yaml", "r") as f:
+            flair_mapping = yaml.load(f, Loader=yaml.SafeLoader)
+        if code in flair_mapping.keys():
+            return flair_mapping[code]
         else:
-            for i, match in enumerate(matches):
-                print(f"{i+1}. {match}")
-            selection = input(f"Which team (1-{len(matches)}) does the flair '{flair}' refer to? ")
-            flair_mapping[flair] = matches[int(selection)-1]
+            matches = []
+            for team in all_teams:
+                if re.match(team.replace(" ", "").lower(), code):
+                    matches.append(team)
 
-        with open("flairs.yaml", "w") as f:
-            yaml.dump(flair_mapping, f)
-        return flair_mapping[flair]
+            
+            if len(matches) == 0:
+                manual_match = input(f"Couldn't match '{flair}' to a team name. \nEnter team or leave blank for None: ")
+                flair_mapping[flair] = manual_match if len(manual_match) > 0 else None
+            elif len(matches) == 1:
+                flair_mapping[flair] = matches[0]
+            else:
+                for i, match in enumerate(matches):
+                    print(f"{i+1}. {match}")
+                selection = input(f"Which team (1-{len(matches)}) does the flair '{flair}' refer to? ")
+                flair_mapping[flair] = matches[int(selection)-1]
+
+            with open("flairs.yaml", "w") as f:
+                yaml.dump(flair_mapping, f)
+
+    return [flair_mapping[code] for code in team_codes]
 
 # Extract the names of schools involved in a game thread from the post title
 # Ex: [Game Thread] Pittsburgh @ NC State (12:00 PM ET)
@@ -103,6 +109,6 @@ def parse_game_thread(body_text):
 
     # (away_points, home_points)
     # NOTE: datatype is str
-    score = re.search(r"\*{2}([0-9]+)\*{2}\s@\s\*{2}([0-9]+)\*{2}").groups()
+    score = re.search(r"\*{2}([0-9]+)\*{2}\s@\s\*{2}([0-9]+)\*{2}", body_text).groups()
 
     return dt, team_records, score
