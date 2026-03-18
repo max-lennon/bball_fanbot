@@ -24,7 +24,16 @@ class_table_map = {
 # Records can be any mix of Comment, Game, User, etc
 # Table placement is determined by object type
 def insert_pipeline(new_records: List[NamedTuple]):
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         for record in new_records:
             target_table = get_table(class_table_map[type(record)])
             conn.execute(target_table.insert(), record._asdict())
+
+# Add many records of the same type (e.g. Comment) at once
+# Table placement is determined by object type
+# NOTE: new_records MUST all belong to the same class!
+def insert_batch(new_records: List[NamedTuple]):
+    target_table = get_table(class_table_map[type(new_records[0])])
+    record_dicts = [record._asdict() for record in new_records]
+    with engine.begin() as conn:
+        conn.execute(target_table.insert(), record_dicts)
