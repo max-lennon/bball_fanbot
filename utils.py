@@ -6,23 +6,23 @@ from data_structures import *
 
 # Accepts a Reddit user flair (team name + mascot) and finds the corresponding school name as it appears in thread titles.
 # Matches are cached in a YAML file after being initially determined.
-def match_flair_with_team(flair, all_teams):
+def match_flair_with_team(flair, flair_mapping):
     if flair is None:
         return []
     
     team_codes = re.findall(r":([a-z]+):", flair)
-    
+
     for code in team_codes:
-        with open("flairs.yaml", "r") as f:
-            flair_mapping = yaml.load(f, Loader=yaml.SafeLoader)
         if code in flair_mapping.keys():
-            return flair_mapping[code]
+            continue
         else:
+
             matches = []
+            with open("teams.txt", "r") as f:
+                all_teams = [line.strip() for line in f.readlines()]
             for team in all_teams:
                 if re.match(code, team.replace(" ", "").lower()):
                     matches.append(team)
-
             
             if len(matches) == 0:
                 manual_match = input(f"Couldn't match '{code}' to a team name. \nEnter team or leave blank for None: ")
@@ -44,6 +44,29 @@ def match_flair_with_team(flair, all_teams):
                 yaml.dump(flair_mapping, f)
 
     return [flair_mapping[code] for code in team_codes]
+
+def match_team_with_conference(team_name):
+
+    with open("team_confs.yaml", "r") as f:
+        conf_mapping = yaml.load(f, Loader=yaml.SafeLoader)
+    
+    if team_name in conf_mapping.keys():
+        return conf_mapping[team_name]
+
+    conference_options = ["America East", "AAC", "A10", "ACC", "ASUN", "Big 12", "Big East", 
+                          "Big Sky", "Big South", "Big Ten", "Big West", "CAA", "CUSA",
+                          "Horizon", "Ivy League", "MAAC", "MEAC", "MAC", "MVC", "Mountain West",
+                          "NEC", "OVC", "Patriot League", "SEC", "SoCon", "SLC",
+                          "SWAC", "Summit", "Sun Belt", "WCC", "WAC"]
+    conference_selector = input(f"Which conference does {team_name} belong to?\n{' | '.join([str(i+1)+'. '+conf for (i, conf) in enumerate(conference_options)])}")
+    conference = conference_options[int(conference_selector)-1]
+
+    conf_mapping[team_name] = conference
+
+    with open("team_confs.yaml", "w") as f:
+        yaml.dump(conf_mapping, f)
+
+    return conference    
 
 # Extract the names of schools involved in a game thread from the post title
 # Ex: [Game Thread] Pittsburgh @ NC State (12:00 PM ET)
@@ -79,7 +102,7 @@ def parse_index_thread(body_text):
     for line in table_lines:
         # lines containing game threads begin either with 'FINAL' or a clock time
         if re.match("[0-9]|F", line[:1]):
-
+            print(line)
             # character sequence in between the two backslashes will be the post ID
             game_thread_id = re.search("/[a-z,0-9]+/game", line).group()[1:-5]
             post_thread_id = re.search("/[a-z,0-9]+/post", line).group()[1:-5]
@@ -92,7 +115,7 @@ def parse_index_thread(body_text):
             away_team = teams_list[0].strip()
             games.append(Game(home_team, away_team, None, None, game_thread_id, post_thread_id, None))
     
-    return games
+    return games 
 
 def parse_game_thread(body_text):
     tipoff_match = re.search(r"Tip-Off:\s+(\d{1,2}:\d{2}\s+[AP]M)\s+([A-Z]{2,4})", body_text)
@@ -107,8 +130,8 @@ def parse_game_thread(body_text):
     month_str, day, year = date_match.groups()
 
     # Combine into full datetime string
-    full_str = f"{month_str} {day} {year} {time_str}"
-    dt = datetime.strptime(full_str, "%B %d %Y %I:%M %p")
+    full_dt_str = f"{month_str} {day} {year} {time_str}"
+    dt = datetime.strptime(full_dt_str, "%B %d %Y %I:%M %p").strftime("%Y-%m-%d %H:%M:%S")
 
     # (away_wins, away_losses, home_wins, home_losses) 
     # NOTE: datatype is str
