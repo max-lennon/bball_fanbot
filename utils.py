@@ -142,3 +142,28 @@ def parse_game_thread(body_text):
     score = re.search(r"\*{2}([0-9]+)\*{2}\s@\s\*{2}([0-9]+)\*{2}", body_text).groups()
 
     return dt, team_records, score
+
+def user_affiliation_context(home_team, away_team, user_flair_1=None, user_flair_2=None):
+
+    home_affiliation = False
+    away_affiliation = False
+
+    if home_team in [user_flair_1, user_flair_2]:
+        home_affiliation = True
+    
+    if away_team in [user_flair_1, user_flair_2]:
+        away_affiliation = True
+    
+    if user_flair_1 is None and user_flair_2 is None:
+        context = f"unflaired, commenting on {away_team} vs. {home_team}"
+    elif home_affiliation:
+        if away_affiliation:
+            context = f"split loyalty, {away_team} vs. {home_team}"
+        else:
+            context = f"rooting for {home_team} against {away_team}"
+    elif away_affiliation:
+        context = f"rooting for {away_team} against {home_team}"
+    else:
+        context = f"neutral, commenting on {away_team} vs. {home_team}"
+
+    return context

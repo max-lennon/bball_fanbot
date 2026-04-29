@@ -22,6 +22,23 @@ RECORD_CONFIG = {
     Post: {"table": "posts", "conflict_cols": ["id"], "update_cols": ["upvotes", "body"]},
 }
 
+def query_team_related_comments(team_name: str) -> List[Comment]:
+    comments = get_table("comments")
+    games = get_table("games")
+
+    stmt = (
+        select(comments)
+        .join(games, ((games.c.game_thread == comments.c.game_thread) | (games.c.post_thread == comments.c.game_thread)))
+        .where((games.c.home == team_name) | (games.c.away == team_name))
+    )
+
+    with engine.connect() as conn:
+        start_time = time.time()
+        result = conn.execute(stmt)
+        end_time = time.time()
+        print(f"Query time: {end_time - start_time}")
+        return [Comment(**row._mapping) for row in result]
+
 def record_exists(table_name, pk_values: dict) -> bool:
     """
     Check if a record exists using primary key values.
